@@ -1,0 +1,10 @@
+[project]
+name = "dodo"
+version = "0.2.0"
+description = "The awesome model wrapper"
+readme = "README.md"
+requires-python = ">=3.10,<3.11"
+dependencies = [
+    "scikit-learn==1.7.1",
+    "pandas==2.3.2"
+]
