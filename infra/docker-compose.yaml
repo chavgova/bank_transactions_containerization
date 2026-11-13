@@ -1,0 +1,120 @@
+# note: ➡️ In here, there is nothing. Starting with services, we will define a container per each "service".
+# note: think of services like a unit of system component. It could be anything. It basically configures and
+# note: runs a container. Could be a database, API, frontend, whatever.
+# note: Each service is independent.
+services:
+
+  # note: 💬 For each service, we define the name of it. This one is called "app". The container name
+  # note: will also indicate it. Whenever we wanna refer to this service, we will use the name "app".
+  app:
+
+    # note: 💬The app of course needs an image to use. That is what we define below with "image".
+    image: nova:latest
+
+    # note: ➡️ In here, we already have the bare minimum. The "app" will start a container with the
+    # note: image, "nova:latest". We can already test it.
+
+    # note: ⚠️ Remember! Because we did not set any command to run when container is started, without giving it a command
+    # note: to run, it will just start and stop.
+
+    # note: 🏃‍ Let's run it commenting out the rest of the file:
+    # note: docker compose -f infra/docker-compose.yaml up app
+
+    # note: 👀What happened is that, it created "infra-app-1" container based on the "app-1". Then it exited
+    # note: with Exit code 0, which means everything went ok.
+
+    # note: 💬The docker compose's syntax is "docker compose", and we give the file path with "-f".
+    # note: the "up" command asks docker to "bring a service up", and that service is the name "app"
+    # note: in this case.
+
+    # note: 💬If we do not supply a service name, and just call "docker compose -f infra/docker-compose.yaml up"
+    # note: it will bring up all the services in the file. That is quite handy when you want to start the whole
+    # note: tool stack!
+    command: python src/main.py
+
+    # note: ➡️ As we do not have an ENTRYPOINT in the image, we should supply some command for the container
+    # note: to run when it is started. For that, we use the "command" field. Basically put any command to run in the
+    # note: container.
+
+    # note: 🏃‍ Let's run it commenting out the rest of the file:
+    # note: docker compose -f infra/docker-compose.yaml up app
+
+    # note: 👀As you see, it started our script of "main.py". It starts Spark.
+    # note: At this point it is really handy to keep checking "docker ps" to see what is going on.
+    # note: One tool that makes your life easier is "watch". It keeps calling the command you supply.
+
+    # note: 🏃‍Open up another terminal and run:
+    # note: "watch -n 0.5 docker ps"
+
+    # note: 👀 You can see all the containers running on your local. However the app is not printing anything.
+    # note: If you check the system metrics, you will see CPU is idle, disk is not doing anything, and network too.
+    # note: If you wait for a while, it will crash soon with connection error. Because it cannot connect to
+    # note: MLFlow server, which is what our code is trying to connect to.
+
+    # note: 🚧 Move to Chapter 2 in slides: Integration Testing.
+
+    # note: 💬 We define the dependency of a service to another one with "depends_on". We simply use the names
+    # note: of the required services for it.
+
+    # note: 💬 With dependency listed, when we ask Docker Compose to bring up the "app", first it will bring up
+    # note: up "mlflow". If "mlflow" were to depend on another service, then it would also bring that service up
+    # note: before "mlflow". This way you do not have to worry about manual service dependency management, you
+    # note: can only ask your service to be brought up, and its dependencies will be made ready.
+
+    # note: 🏃Let's bring the "app" up, with all the lines commented except;
+    # note: * - mlflow
+    # note: * mlflow:
+    # note: * image: ghcr.io...
+    # note: * command: mlflow...
+    # note: docker compose -f infra/docker-compose.yaml up app
+    depends_on:
+      mlflow:
+        condition: service_healthy
+
+    # note: 👀 Let's check "docker ps". As you can see from it, and also from the output of Docker Compose, it first
+    # note: started the mlflow service, before it starts the "app" service.
+
+    # note: 💬 While both services started, you will realize that the connection to mlflow will fail again. Again, "app"
+    # note: cannot connect to "mlflow". There are two reasons for it:
+    # note: (1) We did not forward the port of mlflow's. Therefore the mlflow container has no outside connectivity.
+    # note: (2) In configs.py, the hostname of mlflow is "localhost". However the host name should be "mlflow", the name of
+    # note:     the service.
+
+    # note: 💬 As small nuance: By default, services in the same docker compose file are in the same network. Docker, by
+    # note: default, creates a network for the docker compose run and adds all the services there.
+
+    # note: 🏃 Now let's fix the connectivity and rerun:
+    # note: (1) Uncomment all the lines
+    # note: (2) change the config
+    # note: (3) Rebuild the image (remember, we changed a file!)
+    # note: (4) run docker compose up!
+
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:v3.17.0
+    # note: 💡 The below comment is not for the course but actually useful! See also will point the developer
+    # note: To an important source that explains why certain decision has been made!
+    # See also: https://github.com/mlflow/mlflow/issues/16659
+    command: mlflow server --host 0.0.0.0 --port 8080 --allowed-hosts *
+    ports:
+      - "8080:8080"
+
+    # note: 💬 The final piece in this docker compose puzzle is the healthcheck. Some services start fast, but some of them
+    # note: are slow. For instance "app" depends on "mlflow". In the code, at some point the application will want to connect
+    # note: to mlflow. But what if mlflow was not ready and still starting? Then it will fail. How can we prevent it?
+    # note: How can we make sure that "mlflow" will be ready for "app"?
+
+    # note: 💬 One of the most common and easy way is to simply wait for mlflow to be fully ready before we run app.
+    # note: In this example we do it by health check. As simple configuration is as below.
+
+    # note: 💬 The "test" is an custom command that runs every <interval> seconds, for max <retries> times, and executes
+    # note: that command. If the command returns 0, then it means that everything is fine and the service is healthy.
+    # note: If it returns non-zero, in this case 1, it means that the service is not healthy.
+
+    # note: 💬 In this example I setup mlflow by "depends_on.mlflow.condition", so that "app" will start only when mlflow
+    # note: is healhty. And what is healthy, is defined in here.
+    healthcheck:
+      test: apt-get update -y && apt-get install -y curl && curl --fail http://localhost:8080 || exit 1
+      retries: 3
+      interval: 5s
+
+# note: 🚧 Move to integration test under "test_model_training_log_model_to_mlflow.py".

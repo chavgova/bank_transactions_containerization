@@ -1,0 +1,9 @@
+1. Presentation for Docker
+2. Explain changes in the codebase. Highlight MLFlow.
+3. Go through Dockerfile
+4. Go through Readme to show how to work with Docker CLI
+5. Start docker compose. Until the app's "depends on" of the "app"
+6. Go to presentation, start integration testing, finish the slides.
+7. Go back to docker-compose, introduce the mlflow service.
+8. Introduce depends-on, and health-check.
+9. Go to integration tests, introduce the simple integration test.
