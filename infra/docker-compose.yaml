@@ -4,10 +4,41 @@
 # note: Each service is independent.
 services:
 
+  mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_ROOT_PASSWORD: root_password
+      MYSQL_DATABASE: bank_transactions
+      MYSQL_USER: bank_user
+      MYSQL_PASSWORD: bank_password
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./mysql/init:/docker-entrypoint-initdb.d:ro
+    healthcheck: # checks if sql works by exacuting a simple query every 5s
+      test:
+        - CMD-SHELL
+        - >-
+          mysql --protocol=TCP
+          --host=127.0.0.1
+          --user="$${MYSQL_USER}"
+          --password="$${MYSQL_PASSWORD}"
+          "$${MYSQL_DATABASE}"
+          --execute="SELECT 1"
+          >/dev/null 2>&1
+      interval: 5s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+
   # note: 💬 For each service, we define the name of it. This one is called "app". The container name
   # note: will also indicate it. Whenever we wanna refer to this service, we will use the name "app".
   app:
-
+    build:
+      context: ..
+      dockerfile: infra/build/Dockerfile
     # note: 💬The app of course needs an image to use. That is what we define below with "image".
     image: nova:latest
 
@@ -30,7 +61,7 @@ services:
     # note: 💬If we do not supply a service name, and just call "docker compose -f infra/docker-compose.yaml up"
     # note: it will bring up all the services in the file. That is quite handy when you want to start the whole
     # note: tool stack!
-    command: python src/main.py
+    command: ["python", "-m", "src.main"]
 
     # note: ➡️ As we do not have an ENTRYPOINT in the image, we should supply some command for the container
     # note: to run when it is started. For that, we use the "command" field. Basically put any command to run in the
@@ -67,7 +98,16 @@ services:
     # note: * image: ghcr.io...
     # note: * command: mlflow...
     # note: docker compose -f infra/docker-compose.yaml up app
+    environment:
+      DB_HOST: mysql
+      DB_PORT: "3306"
+      DB_NAME: bank_transactions
+      DB_USER: bank_user
+      DB_PASSWORD: bank_password
+      MLFLOW_TRACKING_URI: http://mlflow:8080
     depends_on:
+      mysql:
+        condition: service_healthy
       mlflow:
         condition: service_healthy
 
@@ -118,3 +158,6 @@ services:
       interval: 5s
 
 # note: 🚧 Move to integration test under "test_model_training_log_model_to_mlflow.py".
+
+volumes:
+  mysql_data:

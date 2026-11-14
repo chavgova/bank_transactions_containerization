@@ -5,7 +5,16 @@ import pyspark.sql.functions as F
 from pyspark.sql import DataFrame
 
 from configs.configs import PathsConfig, RunConfig
+from src.sql_database import read_data, write_data
 
+
+def load_raw_data() -> None:
+    # copies the raw parquet dataset into mysql
+    spark = SparkSession.builder.master("local[2]").getOrCreate()
+
+    data = spark.read.parquet(PathsConfig.raw_data_path)
+
+    write_data(data, "raw_transactions")
 
 def _get_data_after(start_date: date) -> DataFrame:
     """
@@ -16,16 +25,8 @@ def _get_data_after(start_date: date) -> DataFrame:
     :param start_date: The date data should be started to read from.
     :return: All data including and after the start_date
     """
-    # I don't want all the cores to be eaten up by Spark, even if this is a minimal application.
-    spark = SparkSession.builder.master("local[2]").getOrCreate()
-    # Remember the lazy execution:
-    # - The order will be decided by Spark.
-    # - Spark will try to filter and select before reading. So you will end up reading only the required parts.
-    return (
-        spark.read.parquet(PathsConfig.raw_data_path)
-        .select(["chck_date", "payment_type", "category", "amount", "fraud"])
-        .filter(F.col("chck_date") >= start_date)
-    )
+    # reads transactions on and after the date from mysql
+    return read_data( "raw_transactions", start_date=start_date) 
 
 
 def get_preprocessed_data(start_date: date) -> DataFrame:

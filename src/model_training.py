@@ -33,7 +33,7 @@ class Model:
             y,
             cv=RunConfig.num_folds,
             return_train_score=True,
-            n_jobs=-1,
+            n_jobs=2,
             scoring=["precision", "recall", "f1"],
         )
         self._model = classifier.fit(x, y)

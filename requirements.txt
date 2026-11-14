@@ -69,7 +69,7 @@ iniconfig==2.1.0
 isort==6.1.0
 itsdangerous==2.2.0
 Jinja2==3.1.6
-joblib==1.5.1
+joblib==1.5.3
 jsonschema==4.25.1
 jsonschema-specifications==2025.9.1
 kiwisolver==1.4.9
@@ -183,3 +183,4 @@ wirerope==1.0.0
 wrapt==1.17.3
 yarl==1.25.1
 zipp==3.23.0
+mysql-connector-python==9.4.0

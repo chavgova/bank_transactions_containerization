@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-
+import os
 
 @dataclass(init=False, frozen=True)
 class PathsConfig:
@@ -9,6 +9,13 @@ class PathsConfig:
 
     model_path: str = "models/"  # Model store
 
+@dataclass(init=False, frozen=True)
+class DatabaseConfig:
+    host: str = os.getenv("DB_HOST", "localhost")
+    port: int = int(os.getenv("DB_PORT", "3306"))
+    database: str = os.getenv("DB_NAME", "bank_transactions")
+    user: str = os.getenv("DB_USER", "bank_user")
+    password: str = os.getenv("DB_PASSWORD", "bank_password")
 
 @dataclass(init=False, frozen=True)
 class RunConfig:
@@ -22,7 +29,7 @@ class RunConfig:
     # note:     Local Run:          "http://localhost:8080"
     # note:     Docker Compose Run: "http://mlflow:8080"
     # note: See docker-compose.yaml notes.
-    mlflow_tracking_uri: str = "http://localhost:8080"
+    mlflow_tracking_uri: str = os.getenv( "MLFLOW_TRACKING_URI", "http://localhost:8080")
     experiment_name: str = "Alpha"
 
 
