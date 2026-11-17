@@ -8,10 +8,16 @@ import mysql.connector
 
 @pytest.fixture(scope="session")
 def spark_fixture():
-    spark = (SparkSession.builder.master("local[2]").appName("pipeline-tests")
-             .config("spark.sql.shuffle.partitions","2").config("spark.sql.session.timeZone","UTC").getOrCreate())
+    spark = (
+        SparkSession.builder.master("local[2]")
+        .appName("pipeline-tests")
+        .config("spark.sql.shuffle.partitions", "2")
+        .config("spark.sql.session.timeZone", "UTC")
+        .getOrCreate()
+    )
     yield spark
     spark.stop()
+
 
 @pytest.fixture
 def make_transactions(spark_fixture):
@@ -48,16 +54,17 @@ def make_features(spark_fixture):
 
     return make
 
+
 @pytest.fixture
 def mysql_fixture():
     class MockDatabaseConfig:
         host = os.getenv("TEST_MYSQL_HOST", "127.0.0.1")
         port = int(os.getenv("TEST_MYSQL_PORT", "3307"))
-        database = "bank_test" 
-        user ="bank_test" 
-        password ="test_password" 
+        database = "bank_test"
+        user = "bank_test"
+        password = "test_password"
 
-    with mock.patch( "src.sql_database.DatabaseConfig", MockDatabaseConfig):
+    with mock.patch("src.sql_database.DatabaseConfig", MockDatabaseConfig):
         with closing(
             mysql.connector.connect(
                 host=MockDatabaseConfig.host,
@@ -65,17 +72,22 @@ def mysql_fixture():
                 database=MockDatabaseConfig.database,
                 user=MockDatabaseConfig.user,
                 password=MockDatabaseConfig.password,
-                autocommit=True)) as connection:
+                autocommit=True,
+            )
+        ) as connection:
 
-            def clear_tables():  
+            def clear_tables():
                 with closing(connection.cursor()) as cursor:
-                    for table in ("raw_transactions", "preprocessed_transactions", "transaction_features"):
-                        cursor.execute(f"DELETE FROM {table}")  
+                    for table in (
+                        "raw_transactions",
+                        "preprocessed_transactions",
+                        "transaction_features",
+                    ):
+                        cursor.execute(f"DELETE FROM {table}")
 
-            clear_tables() 
+            clear_tables()
 
             try:
-                yield connection  
+                yield connection
             finally:
                 clear_tables()
-                

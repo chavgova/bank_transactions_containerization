@@ -16,6 +16,7 @@ def load_raw_data() -> None:
 
     write_data(data, "raw_transactions")
 
+
 def _get_data_after(start_date: date) -> DataFrame:
     """
     Will read and return the data after (including) start_date.
@@ -26,7 +27,7 @@ def _get_data_after(start_date: date) -> DataFrame:
     :return: All data including and after the start_date
     """
     # reads transactions on and after the date from mysql
-    return read_data( "raw_transactions", start_date=start_date) 
+    return read_data("raw_transactions", start_date=start_date)
 
 
 def get_preprocessed_data(start_date: date) -> DataFrame:

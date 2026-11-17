@@ -38,6 +38,7 @@ def test_model_training_log_model_to_mlflow():
     assert artifacts[0].path in ["artifacts/cv_scores.json", "artifacts/donono.pkl"]
     assert artifacts[1].path in ["artifacts/cv_scores.json", "artifacts/donono.pkl"]
 
+
 def test_logging_existing_experiment_mlflow():
     # if an experiment exists, a dublicate one should not be created
     class MockModelConfig:
@@ -45,22 +46,22 @@ def test_logging_existing_experiment_mlflow():
 
     class MockRunConfig:
         mlflow_tracking_uri = "http://localhost:8081"
-        experiment_name = ( f"TextExp-1" )
+        experiment_name = f"TextExp-1"
 
     previous_uri = mlflow.get_tracking_uri()
     mlflow.set_tracking_uri(MockRunConfig.mlflow_tracking_uri)
 
     # experiment exists
-    existing_id = mlflow.create_experiment( MockRunConfig.experiment_name )
+    existing_id = mlflow.create_experiment(MockRunConfig.experiment_name)
 
-    with mock.patch( "src.model_training.RunConfig", MockRunConfig ):
-        with mock.patch( "src.model_training.ModelConfig", MockModelConfig):
+    with mock.patch("src.model_training.RunConfig", MockRunConfig):
+        with mock.patch("src.model_training.ModelConfig", MockModelConfig):
             model = Model()
             model._model = "synthetic-model"
-            model._cv_scores = { "test_f1": np.array([0.1, 0.2, 0.3])}
+            model._cv_scores = {"test_f1": np.array([0.1, 0.2, 0.3])}
             model.log_model_to_mlflow()
 
-    experiment = mlflow.get_experiment_by_name( MockRunConfig.experiment_name)
+    experiment = mlflow.get_experiment_by_name(MockRunConfig.experiment_name)
     assert experiment is not None
 
     if existing_id is not None:

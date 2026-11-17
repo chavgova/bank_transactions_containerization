@@ -11,4 +11,3 @@ with open(model_path, "rb") as file:
 data = pd.read_json(data_path)
 out = model.predict(data)
 print(out)
-

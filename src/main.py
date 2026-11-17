@@ -10,8 +10,8 @@ from src.sql_database import read_data, write_data
 
 
 def main():  # pragma: no cover
-    load_raw_data() # importing the dataset into mysql
-    
+    load_raw_data()  # importing the dataset into mysql
+
     data = get_preprocessed_data(datetime.date(year=2019, month=6, day=1))
     write_data(data, "preprocessed_transactions")
 

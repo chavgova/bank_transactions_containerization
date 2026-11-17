@@ -17,8 +17,15 @@ TRANSACTION_SCHEMA = """
     fraud BOOLEAN
 """
 
-FEATURE_COLUMNS = ( "amount", "fraud", "z_score", "z_score_by_category", 
-                   "enc_category", "enc_payment_type", "is_large_transaction")
+FEATURE_COLUMNS = (
+    "amount",
+    "fraud",
+    "z_score",
+    "z_score_by_category",
+    "enc_category",
+    "enc_payment_type",
+    "is_large_transaction",
+)
 
 FEATURE_SCHEMA = """
     amount DOUBLE,
@@ -31,9 +38,9 @@ FEATURE_SCHEMA = """
 """
 
 TABLES = {
-    "raw_transactions": ( TRANSACTION_COLUMNS, TRANSACTION_SCHEMA), 
-    "preprocessed_transactions":(TRANSACTION_COLUMNS, TRANSACTION_SCHEMA), 
-    "transaction_features": ( FEATURE_COLUMNS, FEATURE_SCHEMA), 
+    "raw_transactions": (TRANSACTION_COLUMNS, TRANSACTION_SCHEMA),
+    "preprocessed_transactions": (TRANSACTION_COLUMNS, TRANSACTION_SCHEMA),
+    "transaction_features": (FEATURE_COLUMNS, FEATURE_SCHEMA),
 }
 
 ARRAY_COLUMNS = ("enc_category", "enc_payment_type")
@@ -47,69 +54,74 @@ def get_connection():
         database=DatabaseConfig.database,
         user=DatabaseConfig.user,
         password=DatabaseConfig.password,
-        autocommit=False)
-    
-    
-def read_data(table: str, start_date: date | None = None) -> DataFrame:  
+        autocommit=False,
+    )
+
+
+def read_data(table: str, start_date: date | None = None) -> DataFrame:
     columns, schema = TABLES[table]
 
-    query = f"SELECT {', '.join(columns)} FROM {table}" 
-    parameters = () 
+    query = f"SELECT {', '.join(columns)} FROM {table}"
+    parameters = ()
 
-    if start_date is not None: 
-        query += " WHERE chck_date >= %s"  
-        parameters = (start_date,) 
+    if start_date is not None:
+        query += " WHERE chck_date >= %s"
+        parameters = (start_date,)
 
     with closing(get_connection()) as connection:
         with closing(connection.cursor(dictionary=True)) as cursor:
-            cursor.execute(query, parameters)  
-            rows = cursor.fetchall() 
+            cursor.execute(query, parameters)
+            rows = cursor.fetchall()
 
-    for row in rows: 
-        for column in ARRAY_COLUMNS: # handeling encodings and categories 
+    for row in rows:
+        for column in ARRAY_COLUMNS:  # handeling encodings and categories
             if column in row and row[column] is not None:
                 row[column] = json.loads(row[column])
 
-        for column in BOOLEAN_COLUMNS: # handeling boolean features and the label
+        for column in BOOLEAN_COLUMNS:  # handeling boolean features and the label
             if column in row and row[column] is not None:
-                row[column] = bool(row[column]) 
- 
+                row[column] = bool(row[column])
+
     spark = SparkSession.builder.master("local[2]").getOrCreate()
 
     return spark.createDataFrame(rows, schema=schema)
 
 
-def write_data( data: DataFrame, table: str, batch_size: int = 10000) -> None:
+def write_data(data: DataFrame, table: str, batch_size: int = 10000) -> None:
     # this function replaces the parqet overwrite behavior
     # it deletes prev rows, inserts new ones and commits
     columns, bla = TABLES[table]
 
-    placeholders = ", ".join(["%s"]* len(columns)) 
+    placeholders = ", ".join(["%s"] * len(columns))
 
-    sql_insert_query = ( f"INSERT INTO {table} ({', '.join(columns)}) VALUES ({placeholders})")
+    sql_insert_query = (
+        f"INSERT INTO {table} ({', '.join(columns)}) VALUES ({placeholders})"
+    )
 
     with closing(get_connection()) as connection:
         with closing(connection.cursor()) as cursor:
             try:
                 cursor.execute(f"DELETE FROM {table}")
-                batch=[] 
+                batch = []
 
                 for row in data.select(*columns).toLocalIterator():
                     record = row.asDict()
-                    values=[] 
+                    values = []
 
                     for column in columns:
                         value = record[column]
 
                         if column in ARRAY_COLUMNS and value is not None:
-                            value = json.dumps(value) # we store arrays as json
+                            value = json.dumps(value)  # we store arrays as json
 
-                        values.append(value) 
+                        values.append(value)
 
                     batch.append(tuple(values))
 
                     if len(batch) == batch_size:
-                        cursor.executemany(sql_insert_query, batch) # multiple rows at a time 
+                        cursor.executemany(
+                            sql_insert_query, batch
+                        )  # multiple rows at a time
                         batch.clear()
 
                 if batch:
@@ -117,6 +129,8 @@ def write_data( data: DataFrame, table: str, batch_size: int = 10000) -> None:
 
                 connection.commit()
 
-            except Exception: # if something fails then we rollback to prev commit table
+            except (
+                Exception
+            ):  # if something fails then we rollback to prev commit table
                 connection.rollback()
                 raise
